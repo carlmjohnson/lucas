@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"flag"
 	"log"
 
@@ -17,11 +18,23 @@ func redirector(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Redirecting %s ...\n", r.URL.Path)
 	}
 
-	urlStr := "http://example.com"
-	code := 302
+	row := db.QueryRow(query, r.URL.Path)
 
-	w.Header().Set("Location", urlStr)
-	w.WriteHeader(code)
+	var (
+		to_url      string
+		status_code int
+	)
+
+	err := row.Scan(&to_url, &status_code)
+	if err == sql.ErrNoRows {
+		http.NotFound(w, r)
+		return
+	} else if err != nil {
+		log.Fatalf("FATAL DATABASE TROUBLE: %v", err)
+	}
+
+	w.Header().Set("Location", to_url)
+	w.WriteHeader(status_code)
 }
 
 func main() {
